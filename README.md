@@ -1,11 +1,35 @@
-<div align="center">
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+# MarketMind AI
 
-  <h1>Built with AI Studio</h2>
+An all-in-one digital marketing platform offering AI-powered workflows, creative templates, and performance insights.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Deployment Guide
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+### 1. Initialize Git Repository
+```bash
+git init
+git add .
+git commit -m "Initial commit: MarketMind AI Platform"
+```
 
-</div>
+### 2. Push to GitHub
+- Create a new repository on GitHub.
+- Run the following commands (replace `YOUR_URL`):
+```bash
+git remote add origin YOUR_GITHUB_REPO_URL
+git branch -M main
+git push -u origin main
+```
+
+### 3. Deploy to Vercel/Netlify
+- Connect your GitHub account to [Vercel](https://vercel.com) or [Netlify](https://netlify.com).
+- Select the `marketmind-ai` repository.
+- **Environment Variables**: Add `API_KEY` with your Google Gemini API Key.
+- Click **Deploy**.
+
+## Tech Stack
+- React 19
+- Tailwind CSS
+- Google Gemini API (@google/genai)
+- Lucide React Icons
+- Vite

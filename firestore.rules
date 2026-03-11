@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Matches Firebase Auth UID)
+    // Fields:
+    //   - uid: string (required) - Unique identifier for the user.
+    //   - email: string (required, email format) - User's email address.
+    //   - displayName: string (optional) - User's display name.
+    //   - photoURL: string (optional) - URL to the user's profile photo.
+    //   - role: string (required, enum: ['admin', 'user']) - User's role.
+    //   - createdAt: string (required, ISO 8601) - Timestamp when the profile was created.
+    //
+    // Collection: users/{userId}/integrations
+    // Document ID: {integrationId}
+    // Fields:
+    //   - uid: string (required) - Owner of the configuration.
+    //   - integrationId: string (required) - ID of the integration.
+    //   - webhookUrl: string (required) - The Zapier webhook URL.
+    //   - autoSync: bool (required) - Whether auto-sync is enabled.
+    //   - lastTriggered: string (optional, ISO 8601) - Last time triggered.
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "chhedadhrishti06@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'user'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidIntegration(data, userId) {
+      return hasRequiredFields(['uid', 'integrationId', 'webhookUrl', 'autoSync']) &&
+             hasOnlyAllowedFields(['uid', 'integrationId', 'webhookUrl', 'autoSync', 'lastTriggered']) &&
+             data.uid == userId &&
+             data.uid == request.auth.uid &&
+             data.webhookUrl is string &&
+             data.webhookUrl.size() < 1000 &&
+             data.autoSync is bool &&
+             (!('lastTriggered' in data) || isValidDateString(data.lastTriggered));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Users can only read their own profile. Admins can read any profile.
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Users can create their own profile if it's valid and they don't grant themselves admin role.
+      // Admins can create any profile.
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ( (isOwner(userId) && request.resource.data.role == 'user') || isAdmin() );
+      
+      // Users can update their own profile but cannot change their role.
+      // Admins can update any profile.
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ( (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin() );
+      
+      // Only admins can delete profiles.
+      allow delete: if isAdmin();
+
+      match /integrations/{integrationId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidIntegration(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidIntegration(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
