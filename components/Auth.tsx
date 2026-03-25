@@ -53,7 +53,21 @@ const Auth: React.FC<AuthProps> = ({ onSignIn }) => {
       onSignIn();
     } catch (err: any) {
       console.error("Auth Error:", err);
-      setError(err.message || "Failed to sign in with Google. Please try again.");
+      let message = err.message || "Failed to sign in with Google.";
+      
+      if (err.code === 'auth/popup-blocked') {
+        message = "The sign-in popup was blocked by your browser. Please allow popups for this site and try again.";
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        message = "The sign-in window was closed before completion. Please try again and keep the window open until finished.";
+      } else if (err.code === 'auth/unauthorized-domain') {
+        message = "This domain is not authorized in the Firebase Console. Please add the current URL to your 'Authorized domains' list.";
+      } else if (err.code === 'auth/operation-not-allowed') {
+        message = "Google Sign-In is not enabled in your Firebase project. Please enable it in the Authentication > Sign-in method tab.";
+      } else if (err.code === 'auth/network-request-failed') {
+        message = "Network error. Please check your internet connection or ensure third-party cookies are enabled.";
+      }
+      
+      setError(message);
     } finally {
       setIsLoading(false);
     }
