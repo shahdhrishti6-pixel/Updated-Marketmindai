@@ -97,6 +97,57 @@ export interface VideoGenerationOptions {
   aspectRatio: "16:9" | "9:16";
 }
 
+export interface StoryboardOptions {
+  prompt: string;
+  aspectRatio: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
+}
+
+export const generateStoryboard = async (options: StoryboardOptions): Promise<string[]> => {
+  // gemini-2.5-flash-image is free and doesn't strictly require a paid key in the same way Veo does
+  // though it still uses the process.env.API_KEY
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key is missing.");
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    
+    // Generate 4 frames in parallel
+    const framePrompts = [
+      `Frame 1: Opening shot. ${options.prompt}. Cinematic lighting, professional photography.`,
+      `Frame 2: Mid-action shot. ${options.prompt}. Dynamic movement, advertising style.`,
+      `Frame 3: Detail/Close-up shot. ${options.prompt}. Macro photography, product focus.`,
+      `Frame 4: Closing shot/Call to action. ${options.prompt}. Clean composition, high resolution.`
+    ];
+
+    const promises = framePrompts.map(p => 
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: p }] },
+        config: { imageConfig: { aspectRatio: options.aspectRatio } },
+      })
+    );
+
+    const results = await Promise.all(promises);
+    const images: string[] = [];
+
+    for (const response of results) {
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          images.push(`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`);
+          break;
+        }
+      }
+    }
+
+    return images;
+  } catch (error) {
+    console.error("Storyboard Error:", error);
+    throw error;
+  }
+};
+
 export const generateAdVideo = async (options: VideoGenerationOptions, onProgress?: (status: string) => void): Promise<string | null> => {
   if (!process.env.API_KEY) {
     throw new Error("API Key is missing. Please select your API key using the Key icon in the navigation bar.");
@@ -127,7 +178,12 @@ export const generateAdVideo = async (options: VideoGenerationOptions, onProgres
     const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
     if (!downloadLink) return null;
 
-    const response = await window.fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+    const response = await window.fetch(downloadLink, {
+      method: 'GET',
+      headers: {
+        'x-goog-api-key': process.env.API_KEY!,
+      },
+    });
     const blob = await response.blob();
     return URL.createObjectURL(blob);
   } catch (error: any) {

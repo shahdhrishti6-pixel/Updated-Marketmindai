@@ -22,7 +22,7 @@ interface AuthProps {
 const Auth: React.FC<AuthProps> = ({ onSignIn }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -109,7 +109,7 @@ const Auth: React.FC<AuthProps> = ({ onSignIn }) => {
               <Logo size={48} className="text-white" />
             </div>
             <h1 className="text-3xl font-black text-[#2D004B] tracking-tight mb-2">
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
+              Welcome to MarketMind AI
             </h1>
             <p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px]">
               {isSignUp ? 'Join the marketing revolution' : 'Your Digital Marketing Headquarters'}
